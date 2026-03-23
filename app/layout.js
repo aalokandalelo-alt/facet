@@ -38,12 +38,13 @@ export default function RootLayout({ children }) {
     <html
       lang="en"
       className={`${bricolage.variable} ${figtree.variable} h-full`}
+      suppressHydrationWarning
     >
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192.png" />
       </head>
-      <body className="h-full" style={{ fontFamily: 'var(--font-body, Figtree, Inter, sans-serif)' }}>
+      <body className="h-full" style={{ fontFamily: 'var(--font-body, Figtree, Inter, sans-serif)' }} suppressHydrationWarning>
         {children}
       </body>
     </html>
