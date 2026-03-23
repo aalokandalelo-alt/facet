@@ -18,6 +18,11 @@ export default function SignupPage() {
     e.preventDefault()
     setError('')
 
+    if (!process.env.NEXT_PUBLIC_APP_URL) {
+      setError('Configuration error: NEXT_PUBLIC_APP_URL is not set. Please contact support.')
+      return
+    }
+
     if (password.length < 8) {
       setError('Password must be at least 8 characters.')
       return

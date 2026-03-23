@@ -15,6 +15,12 @@ export default function ForgotPasswordPage() {
     setError('')
     setLoading(true)
 
+    if (!process.env.NEXT_PUBLIC_APP_URL) {
+      setError('Configuration error: NEXT_PUBLIC_APP_URL is not set. Please contact support.')
+      setLoading(false)
+      return
+    }
+
     const supabase = createClient()
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
