@@ -1,7 +1,10 @@
+import { createRequire } from 'module'
+const _require = createRequire(import.meta.url)
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Fix: webpack can't resolve tslib inside Supabase packages in the middleware
-  // bundle unless we explicitly tell Next.js to transpile them
+  // bundle unless we explicitly alias it to the installed location.
   transpilePackages: [
     '@supabase/supabase-js',
     '@supabase/auth-js',
@@ -11,6 +14,14 @@ const nextConfig = {
     '@supabase/storage-js',
     '@supabase/postgrest-js',
   ],
+
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      tslib: _require.resolve('tslib'),
+    }
+    return config
+  },
 
   // Allow images from Supabase storage
   images: {
