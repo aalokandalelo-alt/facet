@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 
 function slugify(text) {
   return text
@@ -44,73 +43,28 @@ export default function NewWorkspacePage() {
     if (!slug.trim()) { setError('Workspace slug is required.'); return }
 
     setLoading(true)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.push('/login'); return }
 
-    // Check slug uniqueness client-side first (fast path)
-    const { data: existing } = await supabase
-      .from('workspaces')
-      .select('id')
-      .eq('slug', slug)
-      .maybeSingle()
+    try {
+      const res = await fetch('/api/workspaces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), slug }),
+      })
 
-    if (existing) {
-      setError('That URL is already taken. Try a different name or slug.')
-      setLoading(false)
-      return
-    }
+      const data = await res.json()
 
-    // Create workspace
-    const { data: workspace, error: wsError } = await supabase
-      .from('workspaces')
-      .insert({ name: name.trim(), slug, owner_id: user.id })
-      .select()
-      .single()
-
-    if (wsError) {
-      // Handle database-level unique violation (race condition fallback)
-      if (wsError.code === '23505') {
-        setError('That URL is already taken. Try a different name or slug.')
-      } else {
-        setError(wsError.message)
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong. Please try again.')
+        setLoading(false)
+        return
       }
+
+      router.push(`/dashboard/${data.workspace.slug}`)
+      router.refresh()
+    } catch {
+      setError('Network error. Please check your connection and try again.')
       setLoading(false)
-      return
     }
-
-    // Add owner as workspace member — critical: without this, user can't access the workspace
-    const { error: memberError } = await supabase.from('workspace_members').insert({
-      workspace_id: workspace.id,
-      user_id: user.id,
-      role: 'owner',
-    })
-
-    if (memberError) {
-      setError('Workspace was created but we could not add you as a member. Please try again or contact support.')
-      setLoading(false)
-      return
-    }
-
-    // Create default content pillars — non-critical: failure doesn't block workspace use
-    const defaultPillars = [
-      { name: 'Educational', color: '#3B82F6', sort_order: 0 },
-      { name: 'Promotional', color: '#F59E0B', sort_order: 1 },
-      { name: 'Behind the Scenes', color: '#8B5CF6', sort_order: 2 },
-      { name: 'Repurposed', color: '#10B981', sort_order: 3 },
-      { name: 'Trending / Reactive', color: '#EF4444', sort_order: 4 },
-      { name: 'UGC', color: '#F97316', sort_order: 5 },
-      { name: 'Entertainment', color: '#EC4899', sort_order: 6 },
-    ]
-    const { error: pillarsError } = await supabase.from('workspace_pillars').insert(
-      defaultPillars.map(p => ({ ...p, workspace_id: workspace.id, is_default: true }))
-    )
-    if (pillarsError) {
-      console.warn('Default pillars failed to create — workspace still usable:', pillarsError.message)
-    }
-
-    router.push(`/dashboard/${workspace.slug}`)
-    router.refresh()
   }
 
   return (
