@@ -3,7 +3,15 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 // DELETE /api/profile — deletes the authenticated user's account
-export async function DELETE() {
+export async function DELETE(request) {
+  // CSRF protection: only allow requests from our own app
+  const origin = request.headers.get('origin')
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+
+  if (!origin || !appUrl || origin !== appUrl) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const supabase = await createClient()
   const { data: { user }, error: userError } = await supabase.auth.getUser()
 
