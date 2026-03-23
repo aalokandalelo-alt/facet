@@ -1,50 +1,58 @@
 # Workspace Creation Fix — Design Spec
 **Date:** 2026-03-24
-**Status:** Approved
+**Status:** Approved (revised after spec review)
 **Goal:** Make workspace creation work end-to-end in production using the correct Next.js 15 + Supabase SSR architecture.
 
 ---
 
 ## Problem Summary
 
-Workspace creation is completely broken due to three compounding issues:
+Workspace creation is blocked by two issues:
 
-### Issue 1 — Missing `/dashboard/[slug]` page (main 404)
-After any successful workspace creation, the app redirects to `/dashboard/<slug>`. That route does not exist in the codebase — there is no `app/dashboard/[slug]/` directory. This causes a Next.js 404 regardless of whether the workspace was created successfully.
+### Issue 1 — Missing `/dashboard/[slug]` page (the actual 404)
+After any successful workspace creation, the app redirects to `/dashboard/<slug>`. That route does not exist — there is no `app/dashboard/[slug]/` directory. This causes a Next.js 404 regardless of whether the workspace was created correctly in the database. This is the primary blocker.
 
-### Issue 2 — `server.js` createClient is read-only (breaks Server-side auth in mutations)
-`lib/supabase/server.js` exports `createClient()` with `setAll() {}` (no-op). The official `@supabase/ssr` docs require `setAll` to be implemented with a try-catch so it works in:
-- Server Components (try-catch silently absorbs the error; middleware handles refresh)
-- Server Actions and Route Handlers (try-catch succeeds; cookies are written)
-
-Without this, any Server Action or Route Handler that triggers a session token refresh will fail silently, causing `getUser()` to return null even for authenticated users.
-
-### Issue 3 — Workspace mutation uses client-side Supabase (RLS auth.uid() returns null)
-The original workspace creation called Supabase directly from the browser client. The PostgREST RLS policy `auth.uid() IS NOT NULL AND auth.uid() = owner_id` was consistently failing. Root cause: `@supabase/ssr` cookie-based sessions are not always forwarded correctly to PostgREST in the current version when doing direct client mutations. The previous fix attempt moved this to a Route Handler (`/api/workspaces/route.js`), which was the right direction but has the Issue 2 problem and also requires a dev server restart to detect new files.
+### Issue 2 — `server.js` createClient setAll is no-op (good-practice fix)
+`lib/supabase/server.js` exports `createClient()` with `setAll() {}` (no-op). The official `@supabase/ssr` docs recommend implementing `setAll` with a try-catch so the same client works correctly in Server Components (try-catch absorbs the write — middleware handles refresh) and in future Server Actions if added (write succeeds). This is not strictly required for the current Route Handler (which only reads cookies) but is the correct production pattern per Supabase docs.
 
 ---
 
-## Solution Architecture
+## What Is Already Working
 
-### Chosen Pattern: Next.js 15 Server Actions
+The Route Handler at `app/api/workspaces/route.js` (added in the previous fix) is architecturally correct:
+- Auth is verified server-side via `getUser()` before any writes
+- Uses the admin client to bypass RLS (intentional; auth verified in code)
+- Validates inputs (name required, slug format, max lengths)
+- Auto-creates profile row as FK safety net
+- Checks slug uniqueness before insert
+- Rolls back the workspace row if the membership insert fails
+- Creates 7 default pillars (non-critical; logs and continues on failure)
+- Returns proper error objects the form can display
 
-Server Actions are the idiomatic Next.js 15 approach for form mutations. They:
-- Run on the server (access to cookies, env vars, admin client)
-- Are called directly from Client Components — no HTTP endpoint to register
-- Cannot return 404 (they're RPC calls, not routes)
-- Handle redirects natively via `redirect()` from `next/navigation`
-- Are progressively enhanced (work even without JavaScript)
-- Receive errors back as return values (so the form can display them)
+The client-side form (`new/page.js`) already calls this route via fetch and handles errors. This does not need to change.
 
-This is the architecture Vercel recommends for all form mutations in App Router apps.
+The dev server may need a restart to detect the new route file if it was added while the server was running.
 
 ---
 
-## Files Changed
+## Solution: Two targeted changes
 
-### 1. `lib/supabase/server.js` — Fix createClient setAll
+### Change 1 — Create `app/dashboard/[slug]/page.js` (critical)
 
-**Change:** Replace `setAll() {}` with the official try-catch pattern.
+A new Server Component page at `app/dashboard/[slug]/page.js`.
+
+**Responsibilities:**
+- Accept `params.slug` from the URL
+- Load the workspace from Supabase by slug, joined with `workspace_members` to verify the current user is a member (security: no info leak for workspaces you don't belong to)
+- If workspace not found or user is not a member → `notFound()` (Next.js 404)
+- Render a working placeholder UI: workspace name, slug, creation date, and a "Calendar coming soon" message styled to match the rest of the dashboard
+- Uses the existing dashboard layout automatically
+
+This page will be replaced with the real calendar in Phase 2. Its purpose now is to (a) confirm workspace creation works end-to-end and (b) give Phase 2 a file to build on.
+
+### Change 2 — Fix `lib/supabase/server.js` setAll (production hygiene)
+
+Replace the no-op `setAll() {}` with the official try-catch pattern:
 
 ```js
 setAll(cookiesToSet) {
@@ -58,59 +66,15 @@ setAll(cookiesToSet) {
 }
 ```
 
-This makes the same `createClient()` work correctly in Server Components, Server Actions, and Route Handlers.
-
-### 2. `lib/actions/workspaces.js` — New Server Action (replaces API route)
-
-A new file containing the `createWorkspace` Server Action marked `'use server'`.
-
-**Responsibilities:**
-1. Authenticate caller via `createClient().auth.getUser()` — throws if not authenticated
-2. Validate inputs: name (required, max 80 chars), slug (required, lowercase/numbers/hyphens only, max 60 chars)
-3. Ensure a profile row exists for the user (auto-create if missing — safety net for the DB FK constraint)
-4. Check slug uniqueness via admin client
-5. Insert workspace with `owner_id: user.id` via admin client (bypasses RLS, auth already verified in step 1)
-6. Insert owner membership row (`role: 'owner'`) — critical; roll back workspace if this fails
-7. Insert 7 default content pillars — non-critical; log and continue on failure
-8. Return `{ error: string }` on any failure, or call `redirect()` on success
-
-**Error handling contract:**
-- Returns `{ error: 'message' }` for all user-facing errors
-- The calling page checks for this and displays it in the form
-- `redirect()` is called only on full success — Next.js handles the navigation
-
-### 3. `app/dashboard/new/page.js` — Wire up Server Action
-
-**Change:** Remove `fetch('/api/workspaces', ...)` and replace with `useTransition` + direct Server Action call.
-
-The page remains a Client Component (`'use client'`) so the live slug preview and loading spinner still work. The Server Action is imported and called inside `startTransition`. Error state is set from the action's return value.
-
-This pattern is the standard Next.js 15 approach for calling Server Actions from Client Components with loading state.
-
-### 4. `app/dashboard/[slug]/page.js` — New stub workspace page
-
-A new Server Component at `app/dashboard/[slug]/page.js`.
-
-**Responsibilities:**
-- Accept `params.slug` from the URL
-- Load the workspace data from Supabase (name, slug, created_at, owner_id) via the server client
-- Verify the current user is a member of this workspace (via `workspace_members` join) — return 404 if not
-- Render a placeholder UI: workspace name header + "Calendar coming soon" message
-- Uses the existing dashboard layout (sidebar etc.)
-
-This page will be replaced with the real calendar view in Phase 2. Its purpose here is to (a) prove workspace creation worked end-to-end and (b) give Phase 2 a file to build on.
-
-### 5. `app/api/workspaces/route.js` — Delete
-
-This Route Handler was a transitional fix attempt. It is fully replaced by the Server Action and should be deleted to avoid confusion.
+This makes the same `createClient()` work correctly in all server contexts without needing separate read/write client variants.
 
 ---
 
 ## Data Flow (After Fix)
 
 ```
-User fills form → handleCreate() → startTransition(createWorkspace(name, slug))
-                                         ↓ (server)
+User fills form → handleCreate() → fetch POST /api/workspaces
+                                         ↓ (server route handler)
                                createClient().auth.getUser()  ← reads cookie
                                          ↓
                                createAdminClient() insert workspace
@@ -119,7 +83,9 @@ User fills form → handleCreate() → startTransition(createWorkspace(name, slu
                                          ↓
                                insert workspace_pillars (7 defaults)
                                          ↓
-                               redirect(`/dashboard/${slug}`)
+                               returns { workspace } 201
+                                         ↓ (client)
+                          router.push(`/dashboard/${workspace.slug}`)
                                          ↓
                           app/dashboard/[slug]/page.js loads workspace
                                          ↓
@@ -128,17 +94,25 @@ User fills form → handleCreate() → startTransition(createWorkspace(name, slu
 
 ---
 
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `lib/supabase/server.js` | Fix setAll to use try-catch |
+| `app/dashboard/[slug]/page.js` | CREATE — stub workspace page |
+| `app/api/workspaces/route.js` | No change — already correct |
+| `app/dashboard/new/page.js` | No change — already correct |
+
+---
+
 ## Production Quality Checklist
 
-- [ ] No client-side secrets — admin key stays server-only
-- [ ] Input validation on both client (instant feedback) and server (security)
-- [ ] Auth check before every mutation
-- [ ] Atomic workspace+member creation (rollback workspace if member fails)
-- [ ] Proper HTTP semantics — 409 for slug conflict, 401 for unauth, 500 for unexpected
-- [ ] No silent failures — all errors surfaced to user or logged
-- [ ] No orphaned rows — rollback on partial failure
 - [ ] Workspace page verifies membership before rendering (no info leak)
-- [ ] Uses `createAdminClient` only server-side, never imported in Client Components
+- [ ] `notFound()` on missing workspace or unauthorized access
+- [ ] `createClient()` works correctly in all server contexts (setAll fix)
+- [ ] No orphaned rows — rollback on partial failure (already in route handler)
+- [ ] Admin key stays server-only, never imported in Client Components
+- [ ] All user-facing errors displayed in form (already in new/page.js)
 
 ---
 
@@ -148,3 +122,4 @@ User fills form → handleCreate() → startTransition(createWorkspace(name, slu
 - Workspace settings / editing (Phase 2)
 - Inviting team members (Phase 2)
 - Real-time sync (Phase 2)
+- Converting workspace creation to Server Actions (Route Handler is correct; conversion would add churn with no benefit)
