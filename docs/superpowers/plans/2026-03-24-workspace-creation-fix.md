@@ -195,18 +195,27 @@ export default async function WorkspacePage({ params }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) notFound()
 
-  // Load workspace + verify the current user is a member
-  // Security: we join workspace_members so a non-member cannot see this page
-  const { data: memberRow } = await supabase
-    .from('workspace_members')
-    .select('role, joined_at, workspaces(id, name, slug, created_at)')
-    .eq('user_id', user.id)
-    .eq('workspaces.slug', slug)
+  // Step 1: Load workspace by slug
+  // Step 2: Verify the current user is a member (security: non-members get 404)
+  // NOTE: .eq() on a foreign table relation does not work in PostgREST — use two
+  // separate queries instead. This is the correct pattern for this case.
+  const { data: workspace } = await supabase
+    .from('workspaces')
+    .select('id, name, slug, created_at')
+    .eq('slug', slug)
     .maybeSingle()
 
-  if (!memberRow || !memberRow.workspaces) notFound()
+  if (!workspace) notFound()
 
-  const workspace = memberRow.workspaces
+  const { data: memberRow } = await supabase
+    .from('workspace_members')
+    .select('role, joined_at')
+    .eq('workspace_id', workspace.id)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (!memberRow) notFound()
+
   const role = memberRow.role
 
   const createdDate = new Date(workspace.created_at).toLocaleDateString('en-US', {
@@ -229,7 +238,7 @@ export default async function WorkspacePage({ params }) {
               fontFamily: 'var(--font-display, Bricolage Grotesque, sans-serif)',
               flexShrink: 0,
             }}>
-              {workspace.name[0].toUpperCase()}
+              {workspace.name?.[0]?.toUpperCase() ?? 'W'}
             </div>
             <div>
               <h1 style={{
@@ -327,9 +336,11 @@ export default async function WorkspacePage({ params }) {
 
 Read the file back and check:
 - `params` is awaited: `const { slug } = await params`
-- The Supabase query joins `workspaces` via `workspace_members` and filters on both `user_id` and the workspace slug
-- `notFound()` is called if `memberRow` is null OR `memberRow.workspaces` is null
-- The workspace data (`name`, `slug`, `created_at`) and `role` are correctly destructured before use
+- There are **two** separate Supabase queries: first `.from('workspaces').eq('slug', slug)`, then `.from('workspace_members').eq('workspace_id', workspace.id).eq('user_id', user.id)`
+- `notFound()` is called after the first query if `workspace` is null
+- `notFound()` is called after the second query if `memberRow` is null
+- `workspace.name?.[0]?.toUpperCase() ?? 'W'` uses optional chaining (null-safe)
+- The workspace data (`name`, `slug`, `created_at`) and `role` from `memberRow` are used correctly
 
 - [ ] **Step 4: Commit**
 
