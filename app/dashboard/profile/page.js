@@ -54,6 +54,10 @@ export default function ProfilePage() {
     e.preventDefault()
     setPasswordMsg(null)
 
+    if (!currentPassword) {
+      setPasswordMsg({ type: 'error', text: 'Please enter your current password.' })
+      return
+    }
     if (newPassword.length < 8) {
       setPasswordMsg({ type: 'error', text: 'New password must be at least 8 characters.' })
       return
@@ -65,6 +69,19 @@ export default function ProfilePage() {
 
     setSavingPassword(true)
     const supabase = createClient()
+
+    // Verify current password before allowing the change
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    })
+
+    if (verifyError) {
+      setPasswordMsg({ type: 'error', text: 'Current password is incorrect.' })
+      setSavingPassword(false)
+      return
+    }
+
     const { error } = await supabase.auth.updateUser({ password: newPassword })
 
     setPasswordMsg(error
@@ -187,6 +204,19 @@ export default function ProfilePage() {
         <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <label style={{ display: 'block', fontSize: 13, color: '#8080A0', marginBottom: 6 }}>
+              Current password
+            </label>
+            <input
+              className="input"
+              type="password"
+              value={currentPassword}
+              onChange={e => setCurrentPassword(e.target.value)}
+              placeholder="Your current password"
+              autoComplete="current-password"
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 13, color: '#8080A0', marginBottom: 6 }}>
               New password
             </label>
             <input
@@ -215,7 +245,7 @@ export default function ProfilePage() {
             <button
               type="submit"
               className="btn btn-secondary btn-sm"
-              disabled={savingPassword || !newPassword || !confirmPassword}
+              disabled={savingPassword || !currentPassword || !newPassword || !confirmPassword}
               style={{ marginLeft: 'auto' }}
             >
               {savingPassword ? 'Updating…' : 'Update password'}
