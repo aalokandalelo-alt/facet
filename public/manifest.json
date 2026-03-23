@@ -1,0 +1,38 @@
+{
+  "name": "Cadence",
+  "short_name": "Cadence",
+  "description": "Your team's content rhythm, in one place.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#07070E",
+  "theme_color": "#07070E",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["productivity", "social"],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/dashboard",
+      "description": "Go to your workspaces"
+    }
+  ]
+}

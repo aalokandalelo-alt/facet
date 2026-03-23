@@ -1,0 +1,191 @@
+@import "tailwindcss";
+
+/* ─── Design System ───────────────────────────────────────── */
+@theme inline {
+  /* Colours */
+  --color-bg:          #07070E;
+  --color-surface:     #0F0F1A;
+  --color-surface-2:   #16162A;
+  --color-border:      #1E1E35;
+  --color-border-2:    #2A2A45;
+
+  --color-cyan:        #00D4FF;
+  --color-cyan-dim:    rgba(0,212,255,0.15);
+  --color-cyan-hover:  #00BBEE;
+
+  --color-text:        #F0F0F8;
+  --color-text-muted:  #8080A0;
+  --color-text-dim:    #4A4A6A;
+
+  --color-success:     #00C896;
+  --color-warning:     #F0A020;
+  --color-error:       #FF4060;
+}
+
+/* ─── Base ────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #07070E;
+  color: #F0F0F8;
+  font-family: 'Figtree', 'Inter', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ─── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #07070E; }
+::-webkit-scrollbar-thumb { background: #2A2A45; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3A3A60; }
+
+/* ─── Selection ───────────────────────────────────────────── */
+::selection { background-color: rgba(0,212,255,0.2); color: #00D4FF; }
+
+/* ─── Focus ───────────────────────────────────────────────── */
+:focus-visible { outline: 2px solid #00D4FF; outline-offset: 2px; border-radius: 4px; }
+
+/* ─── Animations ──────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fadeIn    { animation: fadeIn 0.2s ease-out; }
+.animate-slideIn   { animation: slideInRight 0.25s ease-out; }
+.animate-slideUp   { animation: slideUp 0.25s ease-out; }
+.animate-spin      { animation: spin 0.7s linear infinite; }
+
+/* ─── Glass ───────────────────────────────────────────────── */
+.glass {
+  background: rgba(15, 15, 26, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* ─── Gradient text ───────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #00D4FF 0%, #7B5CF6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Skeleton ────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, #16162A 25%, #1E1E35 50%, #16162A 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+/* ─── Inputs ──────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  background: #0F0F1A;
+  border: 1px solid #1E1E35;
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #F0F0F8;
+  font-family: 'Figtree', sans-serif;
+  font-size: 14px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+}
+.input::placeholder { color: #4A4A6A; }
+.input:focus { border-color: #00D4FF; box-shadow: 0 0 0 3px rgba(0,212,255,0.12); }
+.input:disabled { opacity: 0.45; cursor: not-allowed; }
+.input.error { border-color: #FF4060; }
+
+textarea.input { resize: vertical; min-height: 88px; }
+
+select.input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238080A0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+select.input option { background: #0F0F1A; }
+
+/* ─── Buttons ─────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: 'Figtree', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 10px;
+  padding: 10px 18px;
+  transition: all 0.15s;
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+
+.btn-primary { background: #00D4FF; color: #07070E; font-weight: 600; }
+.btn-primary:hover { background: #00BBEE; box-shadow: 0 0 28px rgba(0,212,255,0.3); }
+.btn-primary:active { background: #009FCC; }
+
+.btn-secondary { background: #16162A; color: #F0F0F8; border: 1px solid #1E1E35; }
+.btn-secondary:hover { background: #1E1E35; border-color: #2A2A45; }
+
+.btn-ghost { background: transparent; color: #8080A0; }
+.btn-ghost:hover { background: #16162A; color: #F0F0F8; }
+
+.btn-danger { background: rgba(255,64,96,0.15); color: #FF4060; border: 1px solid rgba(255,64,96,0.25); }
+.btn-danger:hover { background: #FF4060; color: #fff; }
+
+.btn-sm { padding: 6px 12px; font-size: 13px; border-radius: 8px; }
+.btn-lg { padding: 13px 24px; font-size: 15px; border-radius: 12px; }
+.btn-full { width: 100%; }
+
+/* ─── Card ────────────────────────────────────────────────── */
+.card { background: #0F0F1A; border: 1px solid #1E1E35; border-radius: 16px; }
+
+/* ─── Badge ───────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 100px;
+  text-transform: uppercase;
+}
+
+/* ─── Divider ─────────────────────────────────────────────── */
+.divider { border: none; border-top: 1px solid #1E1E35; margin: 0; }
+
+/* ─── Sidebar ─────────────────────────────────────────────── */
+:root { --sidebar-width: 240px; }
